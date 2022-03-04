@@ -2679,11 +2679,11 @@ func (n *RuntimeGoNakamaModule) TournamentRecordsHaystack(ctx context.Context, i
 // @return error(error) An optional error value if an error occurred.
 func (n *RuntimeGoNakamaModule) PurchaseValidateApple(ctx context.Context, userID, receipt string, passwordOverride ...string) (*api.ValidatePurchaseResponse, error) {
 	if n.config.GetIAP().Apple.SharedPassword == "" && len(passwordOverride) == 0 {
-		return nil, errors.New("Apple IAP is not configured.")
+		return nil, errors.New("apple IAP is not configured")
 	}
 	password := n.config.GetIAP().Apple.SharedPassword
 	if len(passwordOverride) > 1 {
-		return nil, errors.New("Expects a single password override parameter")
+		return nil, errors.New("expects a single password override parameter")
 	} else if len(passwordOverride) == 1 {
 		password = passwordOverride[0]
 	}
@@ -2710,11 +2710,26 @@ func (n *RuntimeGoNakamaModule) PurchaseValidateApple(ctx context.Context, userI
 // @param ctx(type=context.Context) The context object represents information about the server and requester.
 // @param userId(type=string) The user ID of the owner of the receipt.
 // @param receipt(type=string) JSON encoded Google receipt.
+// @param overrides(type=string, optional=true) Override the iap.google.client_email and iap.google.private_key provided in your configuration.
 // @return validation(*api.ValidatePurchaseResponse) The resulting successfully validated purchases. Any previously validated purchases are returned with a seenBefore flag.
 // @return error(error) An optional error value if an error occurred.
-func (n *RuntimeGoNakamaModule) PurchaseValidateGoogle(ctx context.Context, userID, receipt string) (*api.ValidatePurchaseResponse, error) {
-	if n.config.GetIAP().Google.ClientEmail == "" || n.config.GetIAP().Google.PrivateKey == "" {
-		return nil, errors.New("Google IAP is not configured.")
+func (n *RuntimeGoNakamaModule) PurchaseValidateGoogle(ctx context.Context, userID, receipt string, overrides ...struct{ClientEmail string; PrivateKey string}) (*api.ValidatePurchaseResponse, error) {
+	clientEmail := n.config.GetIAP().Google.ClientEmail
+	privateKey := n.config.GetIAP().Google.PrivateKey
+
+	if len(overrides) > 1 {
+		return nil, errors.New("expects a single override parameter")
+	} else if len(overrides) == 1 {
+		if overrides[0].ClientEmail != "" {
+			clientEmail = overrides[0].ClientEmail
+		}
+		if overrides[0].PrivateKey != "" {
+			clientEmail = overrides[0].PrivateKey
+		}
+	}
+
+	if clientEmail == "" || privateKey == "" {
+		return nil, errors.New("google IAP is not configured")
 	}
 
 	uid, err := uuid.FromString(userID)
@@ -2726,7 +2741,7 @@ func (n *RuntimeGoNakamaModule) PurchaseValidateGoogle(ctx context.Context, user
 		return nil, errors.New("receipt cannot be empty string")
 	}
 
-	validation, err := ValidatePurchaseGoogle(ctx, n.logger, n.db, uid, n.config.GetIAP().Google, receipt)
+	validation, err := ValidatePurchaseGoogle(ctx, n.logger, n.db, uid, &IAPGoogleConfig{clientEmail, privateKey}, receipt)
 	if err != nil {
 		return nil, err
 	}
